@@ -543,13 +543,7 @@ class Bums {
             return;
         }
 
-        this.log('
-████████╗██╗████████╗ █████╗ ███╗   ██╗Bums
-╚══██╔══╝██║╚══██╔══╝██╔══██╗████╗  ██║Made by @Crypto_Titan0 
-   ██║   ██║   ██║   ███████║██╔██╗ ██║Join Our Channel: https://t.me/Crypto_Titan0
-   ██║   ██║   ██║   ██╔══██║██║╚██╗██║Subscribe Here https://youtube.com/@crypto_titan0
-   ██║   ██║   ██║   ██║  ██║██║ ╚████║
-   ╚═╝   ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝'.green);
+        this.log('Bums Bot|Made by @Crypto_Titan0|Subscribe Here https://youtube.com/@crypto_titan0'.green);
         
         const nhiemvu = await this.askQuestion('Do you want to do the tasks? (y/n): ');
         const hoinhiemvu = nhiemvu.toLowerCase() === 'y';
