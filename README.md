@@ -35,7 +35,7 @@ All risks are borne by the user
 
 # Registration
 
-Click the following link to register: [https://t.me/BlumCryptoBot/](https://t.me/bums/app?startapp=ref_QbgdRdd6)
+Click the following link to register: [https://t.me/BumsCryptoBot/](https://t.me/bums/app?startapp=ref_QbgdRdd6)
 
 # How to Use
 
