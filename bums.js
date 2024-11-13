@@ -51,7 +51,7 @@ class Bums {
         for (let i = seconds; i > 0; i--) {
             const timestamp = new Date().toLocaleTimeString();
             readline.cursorTo(process.stdout, 0);
-            process.stdout.write(`[${timestamp}] [*] Chờ ${i} giây để tiếp tục...`);
+            process.stdout.write(`[${timestamp}] [*] Wait ${i} seconds to continue...`);
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
         readline.cursorTo(process.stdout, 0);
@@ -181,14 +181,14 @@ class Bums {
 
         for (let i = 0; i < energyDistributions.length; i++) {
             const amount = energyDistributions[i];
-            this.log(`Thu thập lần ${i + 1}/10: ${amount} năng lượng`, 'custom');
+            this.log(`Collect attempt ${i + 1}/10: ${amount} energy`, 'custom');
             
             const result = await this.collectCoins(token, currentCollectSeqNo, amount);
             
             if (result.success) {
                 totalCollected += amount;
                 currentCollectSeqNo = result.newCollectSeqNo;
-                this.log(`Thành công! Đã thu thập: ${totalCollected}/${energy}`, 'success');
+                this.log(`Success! Collected: ${totalCollected}/${energy}`, 'success');
             } else {
                 this.log(`Lỗi khi thu thập: ${result.error}`, 'error');
                 break;
@@ -260,7 +260,7 @@ class Bums {
         const taskList = await this.getTaskLists(token);
         
         if (!taskList.success) {
-            this.log(`Không thể lấy danh sách nhiệm vụ: ${taskList.error}`, 'error');
+            this.log(`Could not fetch task list: ${taskList.error}`, 'error');
             return;
         }
 
@@ -274,10 +274,10 @@ class Bums {
             const result = await this.finishTask(token, task.id);
             
             if (result.success) {
-                this.log(`Làm nhiệm vụ ${task.name} thành công | Phần thưởng: ${task.rewardParty}`, 'success');
-            } else {
-                this.log(`Không thể hoàn thành nhiệm vụ ${task.name}: chưa đủ điều kiện hoặc cần tự làm`, 'error');
-            }
+                this.log(`Successfully completed task ${task.name} | Reward: ${task.rewardParty}`, 'success');
+} else {
+    this.log(`Unable to complete task ${task.name}: conditions not met or requires manual action`, 'error');
+}
 
             await this.countdown(5);
         }
@@ -330,12 +330,12 @@ class Bums {
     }
 
     async processMineUpgrades(token, currentCoin) {
-        this.log('Đang lấy danh sách thẻ...', 'info');
+        this.log('Fetching the list of cards...', 'info');
         const config = require('./config.json');
         const mineList = await this.getMineList(token);
         
         if (!mineList.success) {
-            this.log(`Không thể lấy danh sách thẻ: ${mineList.error}`, 'error');
+            this.log(`Unable to fetch the card list: ${mineList.error}`, 'error');
             return;
         }
 
@@ -347,7 +347,7 @@ class Bums {
             .sort((a, b) => parseInt(b.nextPerHourReward) - parseInt(a.nextPerHourReward));
 
         if (availableMines.length === 0) {
-            this.log('Không có thẻ nào có thể nâng cấp!', 'warning');
+            this.log('No cards available for upgrade!', 'warning');
             return;
         }
 
@@ -356,15 +356,15 @@ class Bums {
             const cost = parseInt(mine.nextLevelCost);
             if (cost > remainingCoin) continue;
 
-            this.log(`Đang nâng cấp thẻ ID ${mine.mineId} | Cost: ${cost} | Reward/h: ${mine.nextPerHourReward}`, 'info');
-            const result = await this.upgradeMine(token, mine.mineId);
-            
-            if (result.success) {
-                remainingCoin -= cost;
-                this.log(`Nâng cấp thẻ ID ${mine.mineId} thành công | Remaining coin: ${remainingCoin}`, 'success');
-            } else {
-                this.log(`Không thể nâng cấp thẻ ID ${mine.mineId}: ${result.error}`, 'error');
-            }
+            this.log(`Upgrading card ID ${mine.mineId} | Cost: ${cost} | Reward/h: ${mine.nextPerHourReward}`, 'info');
+const result = await this.upgradeMine(token, mine.mineId);
+
+          if (result.success) {
+    remainingCoin -= cost;
+    this.log(`Card ID ${mine.mineId} upgraded successfully | Remaining coin: ${remainingCoin}`, 'success');
+           } else {
+    this.log(`Unable to upgrade card ID ${mine.mineId}: ${result.error}`, 'error');
+        }
 
             await this.countdown(5);
         }
@@ -427,28 +427,28 @@ class Bums {
     }
 
     async processSignIn(token) {
-        this.log('Đang kiểm tra điểm danh...', 'info');
-        const signList = await this.getSignLists(token);
-        
-        if (!signList.success) {
-            this.log(`Không thể lấy thông tin điểm danh: ${signList.error}`, 'error');
-            return;
-        }
+    this.log('Checking attendance...', 'info');
+    const signList = await this.getSignLists(token);
+    
+    if (!signList.success) {
+        this.log(`Unable to fetch attendance information: ${signList.error}`, 'error');
+        return;
+    }
 
-        const availableDay = signList.lists.find(day => day.status === 0);
-        
-        if (!availableDay) {
-            this.log('Không có ngày nào cần điểm danh!', 'warning');
-            return;
-        }
+    const availableDay = signList.lists.find(day => day.status === 0);
+    
+    if (!availableDay) {
+        this.log('No day available for attendance!', 'warning');
+        return;
+    }
 
-        this.log(`Đang điểm danh ngày ${availableDay.days}...`, 'info');
-        const result = await this.sign(token);
-        
-        if (result.success) {
-            this.log(`Điểm danh ngày ${availableDay.days} thành công | Phần thưởng: ${availableDay.normal}`, 'success');
+    this.log(`Attending for day ${availableDay.days}...`, 'info');
+    const result = await this.sign(token);
+    
+         if (result.success) {
+        this.log(`Attendance for day ${availableDay.days} successful | Reward: ${availableDay.normal}`, 'success');
         } else {
-            this.log(`Điểm danh thất bại: ${result.error}`, 'error');
+        this.log(`Attendance failed: ${result.error}`, 'error');
         }
     }
 
@@ -513,23 +513,23 @@ class Bums {
         }
 
         if (!gangList.myGang.gangId) {
-            this.log('Bạn chưa tham gia gang nào, đang thử gia nhập Gang Dân Cày Airdrop...', 'info');
+            this.log('You haven’t joined any gang yet, trying to join the Airdrop Farmer Gang...', 'info');
             const result = await this.joinGang(token);
             
             if (result.success) {
-                this.log('Bạn đã gia nhập Gang Dân Cày Airdrop thành công!', 'success');
-            } else {
-                this.log(`Không thể gia nhập gang: ${result.error}`, 'error');
-            }
-        } else {
-            this.log(`Bạn đã là thành viên của gang ${gangList.myGang.name}`, 'custom');
+    this.log('You have successfully joined the Airdrop Farmer Gang!', 'success');
+           } else {
+    this.log(`Cannot join the gang: ${result.error}`, 'error');
+        }
+           } else {
+    this.log(`You are already a member of the gang ${gangList.myGang.name}`, 'custom');
         }
     }
 	
     async main() {
         const dataFile = path.join(__dirname, 'data.txt');
         if (!fs.existsSync(dataFile)) {
-            this.log('Không tìm thấy file data.txt!', 'error');
+            this.log('Data.txt file not found!', 'error');
             return;
         }
 
@@ -539,7 +539,7 @@ class Bums {
             .filter(Boolean);
 
         if (data.length === 0) {
-            this.log('File data.txt trống!', 'error');
+            this.log('The data.txt file is empty!', 'error');
             return;
         }
 
@@ -559,17 +559,17 @@ class Bums {
                     const userId = userData.id;
                     const firstName = userData.first_name;
 
-                    console.log(`\n========== Tài khoản ${i + 1}/${data.length} | ${firstName.green} ==========`);
+                    console.log(`\n========== Account ${i + 1}/${data.length} | ${firstName.green} ==========`);
                     
                     this.log(`Đang đăng nhập...`, 'info');
                     const loginResult = await this.login(initData, 'SkDATcHN');
                     
                     if (!loginResult.success) {
-                        this.log(`Đăng nhập không thành công: ${loginResult.error}`, 'error');
+                        this.log(`Login failed: ${loginResult.error}`, 'error');
                         continue;
                     }
 
-                    this.log('Đăng nhập thành công!', 'success');
+                    this.log('Login successful!', 'success');
                     const token = loginResult.token;
                     await this.processSignIn(token);
 					await this.processGangJoin(token);
@@ -579,14 +579,14 @@ class Bums {
                         this.log(`Energy: ${gameInfo.energySurplus}`, 'custom');
                         
                         if (parseInt(gameInfo.energySurplus) > 0) {
-                            this.log(`Bắt đầu thu thập năng lượng...`, 'info');
+                            this.log('Starting to collect energy...', 'info');
                             const collectSeqNo = gameInfo.data.tapInfo.collectInfo.collectSeqNo;
                             await this.processEnergyCollection(token, gameInfo.energySurplus, collectSeqNo);
                         } else {
-                            this.log(`Không đủ năng lượng để thu thập`, 'warning');
+                            this.log(`Not enough energy to collect`, 'warning');
                         }
                     } else {
-                        this.log(`Không thể lấy thông tin game: ${gameInfo.error}`, 'error');
+                        this.log(`Unable to retrieve game information: ${gameInfo.error}`, 'error');
                     }
                     if(hoinhiemvu) {
                         await this.processTasks(token);
@@ -599,7 +599,7 @@ class Bums {
                         await this.countdown(5);
                     }
                 } catch (error) {
-                    this.log(`Lỗi xử lý tài khoản: ${error.message}`, 'error');
+                    this.log(`Account processing error: ${error.message}`, 'error');
                     continue;
                 }
             }
