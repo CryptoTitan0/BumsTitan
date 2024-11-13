@@ -270,7 +270,7 @@ class Bums {
         }
 
         for (const task of taskList.tasks) {
-            this.log(`Đang thực hiện nhiệm vụ: ${task.name}`, 'info');
+            this.log(`Currently performing the task:${task.name}`, 'info');
             const result = await this.finishTask(token, task.id);
             
             if (result.success) {
@@ -561,7 +561,7 @@ const result = await this.upgradeMine(token, mine.mineId);
 
                     console.log(`\n========== Account ${i + 1}/${data.length} | ${firstName.green} ==========`);
                     
-                    this.log(`Đang đăng nhập...`, 'info');
+                    this.log(`Logging in...`, 'info');
                     const loginResult = await this.login(initData, 'SkDATcHN');
                     
                     if (!loginResult.success) {
