@@ -480,7 +480,7 @@ const result = await this.upgradeMine(token, mine.mineId);
         }
     }
 
-    async joinGang(token, gangName = 'A_Airdrops') {
+    async joinGang(token, gangName = 'Crypto_Titan0') {
         const url = `${this.baseUrl}/miniapps/api/gang/gang_join`;
         const headers = { 
             ...this.headers, 
