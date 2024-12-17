@@ -950,14 +950,14 @@ class Bums {
               }
             }
 
-            if (settings.AUTO_UPGRADE_TAP) {
-              await sleep(5);
-              await this.processTapUpgrades(token, gameInfo.data);
+            if (hoinangcap) {
+            await sleep(5);
+            await this.processMineUpgrades(token, parseInt(gameInfo.coin));
             }
 
-            if (hoinangcap) {
-              await sleep(5);
-              await this.processMineUpgrades(token, parseInt(gameInfo.coin));
+            if (settings.AUTO_UPGRADE_TAP) {
+            await sleep(5);
+            await this.processTapUpgrades(token, gameInfo.data);
             }
           } else {
             this.log(`Unable to get game information: ${gameInfo.error}`, "error");
