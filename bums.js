@@ -542,9 +542,7 @@ class Bums {
       return;
     }
 
-    let availableMines = mineList.mines
-      .filter((mine) => mine.status === 1 && parseInt(mine.nextLevelCost) <= Math.min(currentCoin, settings.MAX_COST_UPGRADE))
-      .sort((a, b) => parseInt(b.nextPerHourReward) - parseInt(a.nextPerHourReward));
+    let availableMines = mineList.mines.filter((mine) => mine.status === 1);
 
     if (availableMines.length === 0) {
       this.log("There are no upgradeable cards!", "warning");
