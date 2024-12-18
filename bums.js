@@ -542,7 +542,7 @@ class Bums {
       return;
     }
 
-    let availableMines = mineList.mines.filter((mine) => mine.status !== -3);
+    let availableMines = mineList.mines.filter((mine) => mine.status === 1);
 
     if (availableMines.length === 0) {
       this.log("There are no upgradeable cards!", "warning");
