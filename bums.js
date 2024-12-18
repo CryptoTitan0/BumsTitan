@@ -59,7 +59,7 @@ class Bums {
       return this.session_user_agents[this.session_name];
     }
 
-    this.log(`Creating User Agent...`);
+    this.log(`Tạo user agent...`);
     const newUserAgent = this.#get_random_user_agent();
     this.session_user_agents[this.session_name] = newUserAgent;
     this.#save_session_data(this.session_user_agents);
@@ -102,7 +102,7 @@ class Bums {
       }
       return [];
     } catch (error) {
-      this.log(`Error when reading wallet file:${error.message}`, "error");
+      this.log(`Lỗi khi đọc file wallet: ${error.message}`, "error");
       return [];
     }
   }
@@ -302,7 +302,7 @@ class Bums {
             propShopSellId: data.sellLists[0]?.limitSingleBuyNumMin || 1,
           });
           if (res.data?.code == 0) {
-            this.log("Successfully received free box!", "success");
+            this.log("Received free box successfully!", "success");
           }
         }
         return {
@@ -364,7 +364,7 @@ class Bums {
       const episodeNum = getEpisodeNumber(taskInfo.name);
       if (episodeNum !== null && episodeCodes[episodeNum]) {
         params.append("pwd", episodeCodes[episodeNum]);
-        this.log(`Sending code for Episode ${episodeNum}: ${episodeCodes[episodeNum]}`, "info");
+        this.log(`Sending code for Episode${episodeNum}: ${episodeCodes[episodeNum]}`, "info");
       }
     }
 
@@ -383,7 +383,7 @@ class Bums {
   }
 
   async processTasks(token) {
-    this.log("Retrieving task list...", "info");
+    this.log("Getting task list...", "info");
     const taskList = await this.getTaskLists(token);
     if (!taskList.success) {
       this.log(`Unable to get task list: ${taskList.error}`, "error");
@@ -391,7 +391,7 @@ class Bums {
     }
 
     if (taskList.tasks.length === 0) {
-      this.log("There are no new missions!", "warning");
+      this.log("No new quests!", "warning");
       return;
     }
     const tasks = taskList.tasks.filter((task) => !settings.SKIP_TASKS.includes(task.id));
@@ -402,9 +402,9 @@ class Bums {
       const result = await this.finishTask(token, task.id, task);
 
       if (result.success) {
-        this.log(`Task ${task.name} succeeded | Award: ${task.rewardParty}`, "success");
+        this.log(`Complete task ${task.name} successfully | Reward: ${task.rewardParty}`, "success");
       } else {
-        this.log(`The task ${task.id} | could not be completed ${task.name}: not qualified or need to do it yourself`, "warning");
+        this.log(`Unable to complete task ${task.id} | ${task.name}: not qualified or need to do it yourself`, "warning");
       }
 
       await sleep(5);
@@ -481,6 +481,74 @@ class Bums {
     }
   }
 
+  async spin(token, count = 1) {
+    const url = `${this.baseUrl}/miniapps/api/game_slot/start`;
+    const headers = {
+      ...this.headers,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
+    };
+
+    const formData = new FormData();
+    formData.append("count", count);
+
+    try {
+      const response = await axios.post(url, formData, { headers });
+      if (response.status === 200 && response.data.code === 0 && response.data.msg === "OK") {
+        this.log(`Spin successful! Reward: ${response.data.data.rewardLists.rewardList[0].name}`, "success");
+        return { success: true };
+      } else {
+        this.log(`Spin không thành công: ${response.data.msg}`, "warning");
+        return { success: false, error: response.data.msg };
+      }
+    } catch (error) {
+      this.log(`Lỗi Spin: ${error.message}`, "error");
+      return { success: false, error: error.message };
+    }
+  }
+
+  async handleSpin(token) {
+    const url = `${this.baseUrl}/miniapps/api/game_slot/stamina`;
+    const headers = {
+      ...this.headers,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    try {
+      const response = await axios.get(url, { headers });
+
+      if (response.status === 200 && response.data.code === 0 && response.data.msg === "OK") {
+        let spinTime = parseInt(response.data.data.staminaNow);
+        this.log(`Current number of spins: ${spinTime}/${response.data.data.staminaMax}`, "success");
+        if (spinTime > 0) this.log("Start spinning...");
+        while (spinTime > 0) {
+          await sleep(5);
+          if (spinTime >= 50) {
+            await this.spin(token, 50);
+            spinTime -= 50;
+          } else if (spinTime < 50 && spinTime >= 10) {
+            await this.spin(token, 10);
+            spinTime -= 10;
+          } else if (spinTime < 10 && spinTime >= 3) {
+            await this.spin(token, 3);
+            spinTime -= 3;
+          } else {
+            await this.spin(token, 1);
+            spinTime -= 1;
+          }
+        }
+        return { success: true };
+      } else {
+        this.log(`Unable to get spin information: ${response.data.msg || "Unkown error"}`, "warning");
+        return { success: false, error: response.data.msg };
+      }
+    } catch (error) {
+      this.log(`Error getting spin information: ${error.message || "Unkown error"}`, "error");
+      return { success: false, error: error.message };
+    }
+  }
+
   async getDailyComboReward(token) {
     const url = `${this.baseUrl}/miniapps/api/mine_active/getMineAcctiveInfo`;
     const headers = {
@@ -520,21 +588,24 @@ class Bums {
 
     try {
       const response = await axios.post(url, formData, { headers });
-      if (response.status === 200 && response.data.code === 0) {
+      if (response.status === 200 && response.data?.data?.status === 0) {
         this.log("Get daily combo rewards: 2,000,000", "success");
         return { success: true };
+      } else if (response.status === 200 && response.data?.data?.status === -1) {
+        this.log("Daily combo is incorrect!", "warning");
+        return { success: false };
       } else {
-        this.log("Error receiving daily combo rewards: " + response.data.msg, "warning");
+        this.log("Error receiving combo reward daily: " + response.data.msg, "warning");
         return { success: false, error: response.data.msg };
       }
     } catch (error) {
-      this.log("Error receiving daily combo rewards: " + error.message, "error");
+      this.log("Error receiving daily combo reward: " + error.message, "error");
       return { success: false, error: error.message };
     }
   }
 
   async processMineUpgrades(token, currentCoin) {
-    this.log("Retrieving tag list...", "info");
+    this.log("Getting card list...", "info");
     const mineList = await this.getMineList(token);
 
     if (!mineList.success) {
@@ -547,7 +618,7 @@ class Bums {
       .sort((a, b) => parseInt(b.nextPerHourReward) - parseInt(a.nextPerHourReward));
 
     if (availableMines.length === 0) {
-      this.log("There are no upgradeable cards!", "warning");
+      this.log("No cards can be upgraded!", "warning");
       return;
     }
 
@@ -556,14 +627,14 @@ class Bums {
       const cost = parseInt(mine.nextLevelCost);
       if (cost > remainingCoin) continue;
 
-      this.log(`Upgrading ID card${mine.mineId} | Cost: ${cost} | Reward/h: ${mine.nextPerHourReward}`, "info");
+      this.log(`Upgrading ID card ${mine.mineId} | Cost: ${cost} | Reward/h: ${mine.nextPerHourReward}`, "info");
       const result = await this.upgradeMine(token, mine.mineId);
 
       if (result.success) {
         remainingCoin -= cost;
-        this.log(`Upgrade ID tag ${mine.mineId} successfully| Remaining coin: ${remainingCoin}`, "success");
+        this.log(`Upgrade ID card ${mine.mineId} success | Remaining coin: ${remainingCoin}`, "success");
       } else {
-        this.log(`ID card cannot be upgraded${mine.mineId}: ${result.error}`, "error");
+        this.log(`Unable to upgrade ID card${mine.mineId}: ${result.error}`, "error");
         if (result.error?.includes("Insufficient balance")) {
           const gameInfo = await this.getGameInfo(token);
           if (gameInfo.success) remainingCoin = gameInfo.coin;
@@ -590,13 +661,13 @@ class Bums {
     for (const type of listType) {
       if (+tapInfo[type]?.nextCostCoin > currentCoin) continue;
 
-      this.log(`Upgrading${type} | Cost: ${tapInfo[type]?.nextCostCoin} | Next level: ${tapInfo[type]?.level + 1}`, "info");
+      this.log(`Upgrading ${type} | Cost: ${tapInfo[type]?.nextCostCoin} | Next level: ${tapInfo[type]?.level + 1}`, "info");
       const result = await this.upgradeTap(token, type);
       if (result.success) {
         currentCoin -= +tapInfo[type]?.nextCostCoin;
-        this.log(`Upgrade ${type} Level up successfully ${tapInfo[type]?.level + 1}`, "success");
+        this.log(`Upgraded ${type} to level successfully ${tapInfo[type]?.level + 1}`, "success");
       } else {
-        this.log(`Cannot upgrade${type}: ${result.error}`, "error");
+        this.log(`Cannot upgrade ${type}: ${result.error}`, "error");
       }
       await sleep(3);
     }
@@ -643,14 +714,14 @@ class Bums {
       }
     } catch (error) {
       if (error.message?.includes("connect ECONNREFUSED")) {
-        throw new Error(`Connection failed! Check the proxy again: ${error.message}`);
+        throw new Error(`Connection failed! Check proxy again: ${error.message}`);
       }
       if (error.status == 401 && retries == 0) {
-        this.log(`Unable to authenticate error...retrieving new token...`);
+        this.log(`Error unable to authenticate...getting new token...`);
         const loginResult = await this.login(this.queryId, "DTJy3oTR");
         if (!loginResult.success) {
           this.log(`Login failed, need to retrieve query_id`, "error");
-          throw new Error("Failed to authenticate, need to retrieve query_id");
+          throw new Error("Unable to authenticate, need to retrieve query_id");
         }
         // this.saveToken(this.session_name, loginResult.token);
         retries++;
@@ -687,24 +758,24 @@ class Bums {
     const signList = await this.getSignLists(token);
 
     if (!signList.success) {
-      this.log(`Unable to get attendance information:${signList.error}`, "warning");
+      this.log(`Unable to get attendance information: ${signList.error}`, "warning");
       return;
     }
 
     const availableDay = signList.lists.find((day) => day.status === 0);
 
     if (!availableDay) {
-      this.log("There is no day when attendance is required!", "warning");
+      this.log("There is no roll call day!", "warning");
       return;
     }
 
-    this.log(`Taking attendance today ${availableDay.days}...`, "info");
+    this.log(`Checking in today${availableDay.days}...`, "info");
     const result = await this.sign(token);
 
     if (result.success) {
-      this.log(`Attendance on ${availableDay.days} successful | Award: ${availableDay.normal}`, "success");
+      this.log(`Roll call on ${availableDay.days} successful | Reward: ${availableDay.normal}`, "success");
     } else {
-      this.log(`Attendance failed:${result.error}`, "error");
+      this.log(`Roll call failed: ${result.error}`, "error");
     }
   }
 
@@ -779,11 +850,11 @@ class Bums {
   }
 
   async processGangJoin(token) {
-    this.log("Checking gang information...", "info");
+    this.log("Checking cast iron information...", "info");
     const gangList = await this.getGangLists(token);
 
     if (!gangList.success) {
-      this.log(`You have successfully joined the Gang!${gangList.error}`, "error");
+      this.log(`Unable to get gang information: ${gangList.error}`, "error");
       return;
     }
 
@@ -792,7 +863,7 @@ class Bums {
       if (result.success) {
         this.log("You have successfully joined the Gang!", "success");
       } else {
-        this.log(`Unable to join gang: ${result.error}`, "error");
+        this.log(`Cannot join gang: ${result.error}`, "error");
       }
     } else if (gangList.myGang.gangId !== "1855185246600736769") {
       const res = await this.lGang(token);
@@ -832,15 +903,15 @@ class Bums {
         this.log(`Token expires on: ${expirationDate.toFormat("yyyy-MM-dd HH:mm:ss")}`, "custom");
 
         const isExpired = now > parsedPayload.exp;
-        this.log(`Has the token expired? ${isExpired ? "That's right, you need to change the token" : "No...go full throttle"}`, "custom");
+        this.log(`Has the token expired? ${isExpired ? "Yes, you need to replace the token" : "Not yet..go for it"}`, "custom");
 
         return isExpired;
       } else {
-        this.log(`Perpetual tokens have unreadable expiration times`, "warning");
+        this.log(`Eternal Token Unreadable Expiry Time`, "warning");
         return false;
       }
     } catch (error) {
-      this.log(`Lỗi rồi: ${error.message}`, "error");
+      this.log(`Error: ${error.message}`, "error");
       return true;
     }
   }
@@ -868,7 +939,7 @@ class Bums {
   }
 
   async main() {
-    console.log(colors.yellow("Bums Bot|Made by @Crypto_Titan0|Subscribe Here https://youtube.com/@crypto_titan0"));
+    console.log(colors.yellow("Bums Bot | Made by @Crypto_Titan0 | Subscribe Here https://youtube.com/@crypto_titan0"));
 
     const dataFile = path.join(__dirname, "data.txt");
     if (!fs.existsSync(dataFile)) {
@@ -879,7 +950,7 @@ class Bums {
     const data = fs.readFileSync(dataFile, "utf8").replace(/\r/g, "").split("\n").filter(Boolean);
 
     if (data.length === 0) {
-      this.log("File data.txt is empty!", "error");
+      this.log("The data.txt file is empty!", "error");
       return;
     }
 
@@ -902,39 +973,44 @@ class Bums {
           // let token = this.getToken(userId);
           // let needsNewToken = !token || this.isExpired(token);
 
-          this.log(`Signing in...`, "info");
+          this.log(`Logging in...`, "info");
           const loginResult = await this.login(initData, "DTJy3oTR");
 
           if (!loginResult.success) {
-            this.log(`Login failed, query_id may need to be retrieved: ${loginResult.error}`, "error");
+            this.log(`Login failed, may need to retrieve query_id: ${loginResult.error}`, "error");
             continue;
           }
 
-          this.log("Log in successfully!", "success");
+          this.log("Login successful!", "success");
           const token = loginResult.token;
-          await sleep(5);
+          await sleep(3);
           await this.processSignIn(token);
-          await sleep(5);
+          await sleep(3);
           await this.getBoxFree(token);
 
           if (settings.DAILY_COMBO) {
-            await sleep(5);
+            await sleep(3);
             const res = await this.getDailyComboReward(token);
             if (res?.data?.resultNum == 0) this.log(`You have received combodaily!`, "warning");
             else await this.dailyCombo(token);
           }
 
           if (settings.AUTO_JOIN_GANG) {
-            await sleep(5);
+            await sleep(3);
             await this.processGangJoin(token);
           }
 
+          if (settings.AUTO_SPIN) {
+            await sleep(3);
+            await this.handleSpin(token);
+          }
+
           if (hoinhiemvu) {
-            await sleep(5);
+            await sleep(3);
             await this.processTasks(token);
           }
 
-          await sleep(5);
+          await sleep(3);
           const gameInfo = await this.getGameInfo(token);
           if (gameInfo.success) {
             this.log(`Coin: ${gameInfo.coin}`, "custom");
@@ -950,21 +1026,21 @@ class Bums {
               }
             }
 
-            if (hoinangcap) {
-              await sleep(5);
-              await this.processMineUpgrades(token,parseInt(gameInfo.coin));
+            if (settings.AUTO_UPGRADE_TAP) {
+              await sleep(3);
+              await this.processTapUpgrades(token, gameInfo.data);
             }
 
-            if (settings.AUTO_UPGRADE_TAP) {
-              await sleep(5);
-              await this.processTapUpgrades(token, gameInfo.data);
+            if (hoinangcap) {
+              await sleep(3);
+              await this.processMineUpgrades(token, parseInt(gameInfo.coin));
             }
           } else {
             this.log(`Unable to get game information: ${gameInfo.error}`, "error");
           }
 
           if (i < data.length - 1) {
-            await sleep(5);
+            await sleep(3);
           }
         } catch (error) {
           this.log(`Account processing error: ${error.message}`, "error");
@@ -973,7 +1049,7 @@ class Bums {
         }
       }
       updateEnv("DAILY_COMBO", "false");
-      sleep(5);
+      await sleep(5);
       await this.countdown(settings.TIME_SLEEP * 60);
     }
   }

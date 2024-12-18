@@ -109,7 +109,7 @@ class Bums {
       }
       return [];
     } catch (error) {
-      this.log(`Error when reading wallet file: ${error.message}`, "error");
+      this.log(`Error reading wallet file: ${error.message}`, "error");
       return [];
     }
   }
@@ -164,11 +164,11 @@ class Bums {
         this.proxies = fs.readFileSync(proxyFile, "utf8").replace(/\r/g, "").split("\n").filter(Boolean);
       } else {
         this.proxies = [];
-        this.log("No proxy.txt file found!", "warning");
+        this.log("Proxy.txt file not found!", "warning");
       }
     } catch (error) {
       this.proxies = [];
-      this.log(`Error when reading proxy file: ${error.message}`, "error");
+      this.log(`Error reading proxy file: ${error.message}`, "error");
     }
   }
 
@@ -191,11 +191,11 @@ class Bums {
       return response;
     } catch (error) {
       if (error.message?.includes("connect ECONNREFUSED")) {
-        this.log(`Connection failed! Check the proxy again: ${error.message}`);
+        this.log(`Connection failed! Check proxy again: ${error.message}`);
         process.exit(1);
       }
       if (error.status == 401 && retries == 0) {
-        this.log(`Unable to authenticate error...retrieving new token...`);
+        this.log(`Error unable to authenticate...retrieving new token...`);
         const loginResult = await this.login(this.queryId, "DTJy3oTR", proxyUrl);
         if (!loginResult.success) {
           this.log(`Login failed, need to retrieve query_id`, "error");
@@ -394,7 +394,7 @@ class Bums {
             proxyUrl
           );
           if (res.data?.code == 0) {
-            this.log("Successfully received free box!", "success");
+            this.log("Received free box successfully!", "success");
           }
         }
         return {
@@ -585,6 +585,89 @@ class Bums {
     }
   }
 
+  async spin(token, count = 1, proxyUrl) {
+    const url = `${this.baseUrl}/miniapps/api/game_slot/start`;
+    const headers = {
+      ...this.headers,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "multipart/form-data",
+    };
+
+    const formData = new FormData();
+    formData.append("count", count);
+
+    try {
+      const response = await this.makeRequest(
+        {
+          method: "POST",
+          url,
+          data: formData,
+          headers,
+        },
+        proxyUrl
+      );
+      if (response.status === 200 && response.data.code === 0 && response.data.msg === "OK") {
+        this.log(`Spin Successful! Reward: ${response.data.data.rewardLists.rewardList[0].name}`, "success");
+        return { success: true };
+      } else {
+        this.log(`Spin failed: ${response.data.msg}`, "warning");
+        return { success: false, error: response.data.msg };
+      }
+    } catch (error) {
+      this.log(`Lỗi Spin: ${error.message}`, "error");
+      return { success: false, error: error.message };
+    }
+  }
+
+  async handleSpin(token, proxyUrl) {
+    const url = `${this.baseUrl}/miniapps/api/game_slot/stamina`;
+    const headers = {
+      ...this.headers,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    try {
+      const response = await this.makeRequest(
+        {
+          method: "GET",
+          url,
+          headers,
+        },
+        proxyUrl
+      );
+
+      if (response.status === 200 && response.data.code === 0 && response.data.msg === "OK") {
+        let spinTime = parseInt(response.data.data.staminaNow);
+        this.log(`Current number of spins: ${spinTime}/${response.data.data.staminaMax}`, "success");
+        if (spinTime > 0) this.log("Start spinning...");
+        while (spinTime > 0) {
+          await sleep(5);
+          if (spinTime >= 50) {
+            await this.spin(token, 50);
+            spinTime -= 50;
+          } else if (spinTime < 50 && spinTime >= 10) {
+            await this.spin(token, 10);
+            spinTime -= 10;
+          } else if (spinTime < 10 && spinTime >= 3) {
+            await this.spin(token, 3);
+            spinTime -= 3;
+          } else {
+            await this.spin(token, 1);
+            spinTime -= 1;
+          }
+        }
+        return { success: true };
+      } else {
+        this.log(`Unable to get spin information: ${response.data.msg || "Unkown err"}`, "warning");
+        return { success: false, error: response.data.msg };
+      }
+    } catch (error) {
+      this.log(`Error getting spin information: ${error.message || "Unkown err"}`, "error");
+      return { success: false, error: error.message };
+    }
+  }
+
   async getDailyComboReward(token, proxyUrl) {
     const url = `${this.baseUrl}/miniapps/api/mine_active/getMineAcctiveInfo`;
     const headers = {
@@ -637,21 +720,24 @@ class Bums {
         },
         proxyUrl
       );
-      if (response.status === 200 && response.data.code === 0) {
+      if (response.status === 200 && response.data?.data?.status === 0) {
         this.log("Get daily combo rewards: 2,000,000", "success");
         return { success: true };
+      } else if (response.status === 200 && response.data?.data?.status === -1) {
+        this.log("Daily combo is not correct!", "warning");
+        return { success: false };
       } else {
-        this.log("Error receiving daily combo rewards: " + response.data.msg, "warning");
+        this.log("Error receiving daily combo reward: " + response.data.msg, "warning");
         return { success: false, error: response.data.msg };
       }
     } catch (error) {
-      this.log("Error receiving daily combo rewards: " + error.message, "error");
+      this.log("Error receiving daily combo reward: " + error.message, "error");
       return { success: false, error: error.message };
     }
   }
 
   async processTasks(token, proxyUrl) {
-    this.log("Retrieving the mission list....", "info");
+    this.log("Getting task list...", "info");
     const taskList = await this.getTaskLists(token, proxyUrl);
 
     if (!taskList.success) {
@@ -660,18 +746,18 @@ class Bums {
     }
 
     if (taskList.tasks.length === 0) {
-      this.log("There are no new missions!", "warning");
+      this.log("No new quests!", "warning");
       return;
     }
     const tasks = taskList.tasks.filter((task) => !settings.SKIP_TASKS.includes(task.id));
     for (const task of tasks) {
-      this.log(`On duty:${task.name}`, "info");
+      this.log(`On mission: ${task.name}`, "info");
       const result = await this.finishTask(token, task.id, task, proxyUrl);
 
       if (result.success) {
-        this.log(`Task ${task.name} succeeded | Award: ${task.rewardParty}`, "success");
+        this.log(`Complete task ${task.name} successfully | Reward: ${task.rewardParty}`, "success");
       } else {
-        this.log(`The task ${task.id} | could not be completed ${task.name}: not qualified or need to do it yourself`, "warning");
+        this.log(`Unable to complete task ${task.id} | ${task.name}: not qualified or need to do it yourself`, "warning");
       }
 
       await sleep(5);
@@ -685,7 +771,7 @@ class Bums {
 
     for (let i = 0; i < energyDistributions.length; i++) {
       const amount = energyDistributions[i];
-      this.log(`Collect times${i + 1}/10: ${amount} energy`, "custom");
+      this.log(`Collect times ${i + 1}/10: ${amount} energy`, "custom");
 
       const result = await this.collectCoins(token, currentCollectSeqNo, amount, proxyUrl);
 
@@ -694,7 +780,7 @@ class Bums {
         currentCollectSeqNo = result.newCollectSeqNo;
         this.log(`Success! Collected: ${totalCollected}/${energy}`, "success");
       } else {
-        this.log(`Error while collecting:${result.error}`, "error");
+        this.log(`Error while collecting: ${result.error}`, "error");
         break;
       }
 
@@ -707,11 +793,11 @@ class Bums {
   }
 
   async processMineUpgrades(token, currentCoin, proxyUrl) {
-    this.log("Đang lấy danh sách thẻ...", "info");
+    this.log("Getting card list...", "info");
     const mineList = await this.getMineList(token, proxyUrl);
 
     if (!mineList.success) {
-      this.log(`Unable to get tag list:${mineList.error}`, "error");
+      this.log(`Unable to get card list: ${mineList.error}`, "error");
       return;
     }
 
@@ -720,7 +806,7 @@ class Bums {
       .sort((a, b) => parseInt(b.nextPerHourReward) - parseInt(a.nextPerHourReward));
 
     if (availableMines.length === 0) {
-      this.log("There are no upgradeable cards!", "warning");
+      this.log("No cards can be upgraded!", "warning");
       return;
     }
 
@@ -734,9 +820,9 @@ class Bums {
 
       if (result.success) {
         remainingCoin -= cost;
-        this.log(`Upgrade ID card ${mine.mineId} success | Remaining coin: ${remainingCoin}`, "success");
+        this.log(`Upgrade ID card ${mine.mineId} successful | Remaining coin: ${remainingCoin}`, "success");
       } else {
-        this.log(`Cannot upgrade $ID card{mine.mineId}: ${result.error}`, "error");
+        this.log(`Unable to upgrade ID card ${mine.mineId}: ${result.error}`, "error");
         if (result.error?.includes("Insufficient balance")) {
           const gameInfo = await this.getGameInfo(token, proxyUrl);
           if (gameInfo.success) remainingCoin = gameInfo.coin;
@@ -763,11 +849,11 @@ class Bums {
     for (const type of listType) {
       if (+tapInfo[type]?.nextCostCoin > currentCoin) continue;
 
-      this.log(`Đang nâng cấp ${type} | Cost: ${tapInfo[type]?.nextCostCoin} | Next level: ${tapInfo[type]?.level + 1}`, "info");
+      this.log(`Upgrading ${type} | Cost: ${tapInfo[type]?.nextCostCoin} | Next level: ${tapInfo[type]?.level + 1}`, "info");
       const result = await this.upgradeTap(token, type, proxyUrl);
       if (result.success) {
         currentCoin -= +tapInfo[type]?.nextCostCoin;
-        this.log(`Successfully upgraded ${type} to level${tapInfo[type]?.level + 1}`, "success");
+        this.log(`Upgraded ${type} to level successfully ${tapInfo[type]?.level + 1}`, "success");
       } else {
         this.log(`Cannot upgrade ${type}: ${result.error}`, "error");
       }
@@ -854,17 +940,17 @@ class Bums {
 
     const availableDay = signList.lists.find((day) => day.status === 0);
     if (!availableDay) {
-      this.log("There is no day when attendance is required!", "warning");
+      this.log("No roll call day!", "warning");
       return;
     }
 
-    this.log(`Taking attendance today ${availableDay.days}...`, "info");
+    this.log(`Checking in today${availableDay.days}...`, "info");
     const result = await this.sign(token, proxyUrl);
 
     if (result.success) {
-      this.log(`Attendance on ${availableDay.days} successful | Award: ${availableDay.normal}`, "success");
+      this.log(`Roll call on ${availableDay.days} successful | Reward: ${availableDay.normal}`, "success");
     } else {
-      this.log(`Attendance failed: ${result.error}`, "error");
+      this.log(`Roll call failed: ${result.error}`, "error");
     }
 
     await sleep(5);
@@ -958,20 +1044,20 @@ class Bums {
   }
 
   async processGangJoin(token, proxyUrl) {
-    this.log("Checking gang information...", "info");
+    this.log("Roll call failed..", "info");
     const gangList = await this.getGangLists(token, proxyUrl);
 
     if (!gangList.success) {
-      this.log(`Unable to get cast iron information: ${gangList.error}`, "warning");
+      this.log(`Unable to get gang information: ${gangList.error}`, "warning");
       return;
     }
 
     if (!gangList.myGang.gangId) {
       const result = await this.joinGang(token, "airdrophuntersieutoc", proxyUrl);
       if (result.success) {
-        this.log("You have successfully joined the Gang!", "success");
+        this.log("You have successfully joined the Gang.!", "success");
       } else {
-        this.log(`Unable to join gang: ${result.error}`, "error");
+        this.log(`Cannot join gang: ${result.error}`, "error");
       }
     } else if (gangList.myGang.gangId !== "1855185246600736769") {
       const res = await this.lGang(token, proxyUrl);
@@ -1044,11 +1130,11 @@ class Bums {
         this.log(`Token expires on: ${expirationDate.toFormat("yyyy-MM-dd HH:mm:ss")}`, "custom");
 
         const isExpired = now > parsedPayload.exp;
-        this.log(`Has the token expired? ${isExpired ? "That's right, you need to change the token" : "No...go full throttle"}`, "custom");
+        this.log(`Is the token expired? ${isExpired ? "Yes, you need to replace the token": "Chưa..chạy tẹt ga đi"}`, "custom");
 
         return isExpired;
       } else {
-        this.log(`Perpetual tokens have unreadable expiration times`, "warning");
+        this.log(`Permanent Token Unable to Read Expiry Time`, "warning");
         return false;
       }
     } catch (error) {
@@ -1092,7 +1178,7 @@ class Bums {
       }
 
       let token = loginResult.token;
-      this.log("Log in successfully!", "success");
+      this.log("Login successful!", "success");
       await sleep(5);
       await this.processSignIn(token, currentProxy);
       await sleep(5);
@@ -1103,6 +1189,11 @@ class Bums {
         const res = await this.getDailyComboReward(token, currentProxy);
         if (res?.data?.resultNum == 0) this.log(`You have received combodaily!`, "warning");
         else await this.dailyCombo(token, currentProxy);
+      }
+
+      if (settings.AUTO_SPIN) {
+        await sleep(3);
+        await this.handleSpin(token, currentProxy);
       }
 
       if (settings.AUTO_JOIN_GANG) {
@@ -1142,7 +1233,7 @@ class Bums {
         this.log(`Unable to get game information: ${gameInfo.error}`, "warning");
       }
     } catch (error) {
-      this.log(`Account processing error:${error.message}`, "error");
+      this.log(`Account processing error: ${error.message}`, "error");
       return;
     }
   }
@@ -1152,7 +1243,7 @@ async function runWorker(workerData) {
   const { queryId, accountIndex, proxy } = workerData;
   const to = new Bums(queryId, accountIndex, proxy);
   try {
-    await Promise.race([to.runAccount(), new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10 * 60 * 1000))]);
+    await Promise.race([to.runAccount(), new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 24 * 60 * 60 * 1000))]);
     parentPort.postMessage({
       accountIndex,
     });
@@ -1173,12 +1264,12 @@ async function main() {
     console.log(`Proxy: ${proxies.length}`);
     process.exit(1);
   }
-  console.log("Tool Updated and Translated by (https://t.me/D4rkCipherX)".yellow);
+  console.log("Script Updated and Translated by (https://t.me/D4rkCipherX)".yellow);
   let maxThreads = settings.MAX_THEADS;
 
   queryIds.map((val, i) => new Bums(val, i, proxies[i]).createUserAgent());
 
-  sleep(1);
+  await sleep(1);
   while (true) {
     let currentIndex = 0;
     const errors = [];
@@ -1205,13 +1296,13 @@ async function main() {
               resolve();
             });
             worker.on("error", (error) => {
-              errors.push(`Worker error for account${currentIndex}: ${error.message}`);
+              errors.push(`Worker error for account ${currentIndex}: ${error.message}`);
               //   console.log(`Lỗi worker cho tài khoản ${currentIndex}: ${error.message}`);
               resolve();
             });
             worker.on("exit", (code) => {
               if (code !== 0) {
-                errors.push(`Worker for account ${currentIndex} exits with code: ${code}`);
+                errors.push(`Worker for account ${currentIndex} exit with code: ${code}`);
               }
               resolve();
             });
@@ -1235,7 +1326,7 @@ async function main() {
     await sleep(3);
     updateEnv("DAILY_COMBO", "false");
     await sleep(5);
-    console.log("Tool Updated and Translated by (https://t.me/D4rkCipherX)".yellow);
+    console.log("Script Updated and Translated by (https://t.me/D4rkCipherX)".yellow);
     console.log(`=============Complete all accounts=============`.magenta);
     await to.countdown(settings.TIME_SLEEP * 60);
   }
