@@ -5,7 +5,7 @@ const settings = {
   TIME_SLEEP: process.env.TIME_SLEEP ? parseInt(process.env.TIME_SLEEP) : 8,
   MAX_THEADS: process.env.MAX_THEADS ? parseInt(process.env.MAX_THEADS) : 10,
   MAX_LEVEL_TAP_UPGRADE: process.env.MAX_LEVEL_TAP_UPGRADE ? parseInt(process.env.MAX_LEVEL_TAP_UPGRADE) : 10,
-  MAX_COST_UPGRADE: process.env.MAX_COST_UPGRADE ? parseInt(process.env.MAX_COST_UPGRADE) : 1000000,
+  MAX_COST_UPGRADE: process.env.MAX_COST_UPGRADE ? parseInt(process.env.MAX_COST_UPGRADE) : 1000000000,
   SKIP_TASKS: process.env.SKIP_TASKS ? JSON.parse(process.env.SKIP_TASKS.replace(/'/g, '"')) : [],
   AUTO_TASK: process.env.AUTO_TASK ? process.env.AUTO_TASK.toLowerCase() === "true" : false,
   AUTO_UPGRADE_TAP: process.env.AUTO_UPGRADE_TAP ? process.env.AUTO_UPGRADE_TAP.toLowerCase() === "true" : false,
