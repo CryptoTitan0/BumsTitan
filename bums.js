@@ -421,6 +421,7 @@ class Bums {
 
     try {
       const response = await axios.post(url, null, { headers });
+      console.log("API Response:", response.data);
       if (response.status === 200 && response.data.code === 0) {
         return {
           success: true,
