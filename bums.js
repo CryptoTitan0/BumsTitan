@@ -542,7 +542,9 @@ class Bums {
       return;
     }
 
-    let availableMines = mineList.mines.filter((mine) => mine.status === 1);
+    let availableMines = mineList.mines
+      .filter((mine) => mine.status === 1 && parseInt(mine.nextLevelCost) <= Math.min(currentCoin, settings.MAX_COST_UPGRADE))
+      .sort((a, b) => parseInt(b.nextPerHourReward) - parseInt(a.nextPerHourReward));
 
     if (availableMines.length === 0) {
       this.log("There are no upgradeable cards!", "warning");
@@ -949,13 +951,13 @@ class Bums {
             }
 
             if (hoinangcap) {
-            await sleep(5);
-            await this.processMineUpgrades(token, parseInt(gameInfo.coin));
+              await sleep(5);
+              await this.processMineUpgrades(token,parseInt(gameInfo.coin));
             }
 
             if (settings.AUTO_UPGRADE_TAP) {
-            await sleep(5);
-            await this.processTapUpgrades(token, gameInfo.data);
+              await sleep(5);
+              await this.processTapUpgrades(token, gameInfo.data);
             }
           } else {
             this.log(`Unable to get game information: ${gameInfo.error}`, "error");
