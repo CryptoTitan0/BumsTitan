@@ -13,6 +13,8 @@ const settings = {
   CARD_COMBO: process.env.CARD_COMBO ? JSON.parse(process.env.CARD_COMBO.replace(/'/g, '"')) : [],
   AUTO_UPGRADE: process.env.AUTO_UPGRADE ? process.env.AUTO_UPGRADE.toLowerCase() === "true" : false,
   AUTO_TAP: process.env.AUTO_TAP ? process.env.AUTO_TAP.toLowerCase() === "true" : false,
+  AUTO_SPIN: process.env.AUTO_SPIN ? process.env.AUTO_SPIN.toLowerCase() === "true" : false,
+
   AUTO_JOIN_GANG: process.env.AUTO_JOIN_GANG ? process.env.AUTO_JOIN_GANG.toLowerCase() === "true" : false,
   AUTO_PLAY_GAME_1204: process.env.AUTO_PLAY_GAME_1204 ? process.env.AUTO_PLAY_GAME_1204.toLowerCase() === "true" : false,
   CONNECT_WALLET: process.env.CONNECT_WALLET ? process.env.CONNECT_WALLET.toLowerCase() === "true" : false,
